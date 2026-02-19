@@ -13,14 +13,20 @@
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
-  <widget class="QWidget" name="centralwidget"/>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QTextEdit" name="textEdit"/>
+    </item>
+   </layout>
+  </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
      <width>800</width>
-     <height>26</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menufile">
@@ -38,7 +44,7 @@
     </property>
     <addaction name="actionCut"/>
     <addaction name="actionCopy"/>
-    <addaction name="actionPaste"/>
+    <addaction name="actionPast"/>
     <addaction name="actionSelectAll"/>
    </widget>
    <widget class="QMenu" name="menuFormat">
@@ -75,7 +81,7 @@
    <addaction name="separator"/>
    <addaction name="actionCut"/>
    <addaction name="actionCopy"/>
-   <addaction name="actionPaste"/>
+   <addaction name="actionPast"/>
    <addaction name="actionSelectAll"/>
    <addaction name="separator"/>
    <addaction name="actionAbout"/>
@@ -86,6 +92,9 @@
    </property>
    <property name="text">
     <string>DocumentOpen</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
@@ -98,6 +107,9 @@
    <property name="text">
     <string>NewDocument</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
    </property>
@@ -108,6 +120,9 @@
    </property>
    <property name="text">
     <string>SaveDocument</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
@@ -120,6 +135,9 @@
    <property name="text">
     <string>SaveAsDocument</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+S</string>
+   </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
    </property>
@@ -130,6 +148,9 @@
    </property>
    <property name="text">
     <string>Cut</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+X</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
@@ -142,16 +163,22 @@
    <property name="text">
     <string>Copy</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
-  <action name="actionPaste">
+  <action name="actionPast">
    <property name="icon">
     <iconset theme="QIcon::ThemeIcon::EditPaste"/>
    </property>
    <property name="text">
-    <string>Paste</string>
+    <string>Past</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+V</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
@@ -163,6 +190,9 @@
    </property>
    <property name="text">
     <string>SelectAll</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

@@ -16,6 +16,7 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    QString currentFile;
 
 private:
     Ui::MainWindow *ui;
@@ -24,6 +25,12 @@ private slots:
     void showMessage();
     void openFile();
     void createNewFile();
+    void saveFile();
+    void selectAllText();
+    void cutText();
+    void copyText();
+    void pastText();
+    void saveAsDocument();
 };
 
 #endif // MAINWINDOW_H
