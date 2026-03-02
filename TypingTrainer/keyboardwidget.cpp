@@ -74,7 +74,7 @@ void KeyboardWidget::buildLayout()
     using P = QPair<QString,bool>;
     addRow({ P{"~",false},P{"1",false},P{"2",false},P{"3",false},P{"4",false},
              P{"5",false},P{"6",false},P{"7",false},P{"8",false},P{"9",false},
-             P{"0",false},P{"-",false},P{"=",false},P{"⌫",true} });
+             P{"0",false},P{"-",false},P{"=",false},P{"Backspace",true} });
 
     addRow({ P{"Tab",true},P{"Q",false},P{"W",false},P{"E",false},P{"R",false},
              P{"T",false},P{"Y",false},P{"U",false},P{"I",false},P{"O",false},
@@ -117,7 +117,7 @@ void KeyboardWidget::clearHighlight()
     for (auto it = m_keyMap.begin(); it != m_keyMap.end(); ++it) {
         const QString &k = it.key();
         bool mod = (k == "TAB" || k == "CAPS" || k == "SHIFT" ||
-                    k == "ENTER" || k == "CTRL" || k == "⌫");
+                    k == "ENTER" || k == "CTRL" || k == "BACKSPACE");
         it.value()->setStyleSheet(mod ? KEY_MODIFIER : KEY_NORMAL);
     }
 }

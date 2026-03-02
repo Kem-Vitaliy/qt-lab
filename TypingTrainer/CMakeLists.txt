@@ -9,6 +9,11 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Force UTF-8 encoding for source files (important for Windows)
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
@@ -19,6 +24,8 @@ set(PROJECT_SOURCES
     mainwindow.ui
     lessonmodel.h
     lessonmodel.cpp
+    lessonloader.h
+    lessonloader.cpp
     keyboardwidget.h
     keyboardwidget.cpp
     textdisplaywidget.h
@@ -45,6 +52,20 @@ set_target_properties(TypingTrainer PROPERTIES
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
+
+# Copy lessons/ folder to output directory after build (only if exists)
+if(EXISTS "${CMAKE_SOURCE_DIR}/lessons")
+    add_custom_command(
+        TARGET TypingTrainer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/lessons"
+            "$<TARGET_FILE_DIR:TypingTrainer>/lessons"
+        COMMENT "Copying lessons/ folder to build directory"
+    )
+else()
+    message(STATUS "NOTE: lessons/ folder not found. Application will look for .txt files there.")
+    message(STATUS "      Create lessons/ folder in project root and add .txt files.")
+endif()
 
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(TypingTrainer)

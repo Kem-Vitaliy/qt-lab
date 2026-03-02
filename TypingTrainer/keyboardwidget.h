@@ -9,8 +9,8 @@ class QPushButton;
 /**
  * KeyboardWidget — Visual QWERTY keyboard.
  *
- * highlightKey(ch)  — підсвітити клавішу (напр., поточний символ).
- * clearHighlight()  — скинути всі клавіші до звичайного стилю.
+ * highlightKey(ch)  — highlight key (e.g., current character).
+ * clearHighlight()  — reset all keys to normal style.
  */
 class KeyboardWidget : public QWidget
 {
@@ -25,7 +25,7 @@ public:
 private:
     QMap<QString, QPushButton*> m_keyMap;
 
-    /// modifier=true → використовує стиль модифікатора (Shift, Ctrl…)
+    /// modifier=true → use modifier style (Shift, Ctrl…)
     QPushButton *makeKey(const QString &label, bool modifier = false, int minW = 36);
     void buildLayout();
 };

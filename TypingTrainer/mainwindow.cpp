@@ -3,10 +3,8 @@
 
 #include <QMessageBox>
 #include <QAction>
-
-// ═══════════════════════════════════════════════════════════════════
-// Конструктор / деструктор
-// ═══════════════════════════════════════════════════════════════════
+#include <QRandomGenerator>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -16,14 +14,11 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("TypingTrainer");
     resize(860, 620);
 
-    // ── Заповнити комбо-бокс уроками ──────────────────────────────
-    setupLessons();
+    populateComboBox();
 
-    // ── Меню ──────────────────────────────────────────────────────
     connect(ui->actionExit,  &QAction::triggered, this, &MainWindow::onExitClicked);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::onAboutClicked);
 
-    // ── Кнопки навігації ──────────────────────────────────────────
     connect(ui->btnStartTraining,
             &QPushButton::clicked, this, &MainWindow::onStartTrainingClicked);
     connect(ui->btnRestartTraining,
@@ -31,36 +26,36 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnReturnToMain,
             &QPushButton::clicked, this, &MainWindow::onReturnToMainClicked);
 
-    // ── Зміна вибраного уроку ─────────────────────────────────────
     connect(ui->comboLesson,
             QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onLessonChanged);
 
-    // ── Тестова дія "Advance" (п.8) ───────────────────────────────
-    // Додаємо пункт меню «Debug → Next char» і кнопку в Training
-    QMenu   *menuDebug = menuBar()->addMenu("Debug");
-    QAction *actAdvance = menuDebug->addAction("Next char  [→]");
+    // Меню Lessons: Random + Reload (п.6, п.7)
+    QMenu   *menuLessons = menuBar()->addMenu("Lessons");
+    QAction *actRandom   = menuLessons->addAction("Random lesson");
+    QAction *actReload   = menuLessons->addAction("Reload lessons");
+    actRandom->setShortcut(QKeySequence("Ctrl+R"));
+    actReload->setShortcut(QKeySequence("Ctrl+Shift+R"));
+    connect(actRandom, &QAction::triggered, this, &MainWindow::onRandomLesson);
+    connect(actReload, &QAction::triggered, this, &MainWindow::onReloadLessons);
+
+    // Кнопки Start-екрану (якщо присутні в .ui)
+    if (auto *b = findChild<QPushButton*>("btnRandomLesson"))
+        connect(b, &QPushButton::clicked, this, &MainWindow::onRandomLesson);
+    if (auto *b = findChild<QPushButton*>("btnReloadLessons"))
+        connect(b, &QPushButton::clicked, this, &MainWindow::onReloadLessons);
+
+    // Debug меню (з ПР7)
+    QMenu   *menuDebug  = menuBar()->addMenu("Debug");
+    QAction *actAdvance = menuDebug->addAction("Next char  [->]");
     actAdvance->setShortcut(Qt::Key_Right);
     connect(actAdvance, &QAction::triggered, this, &MainWindow::onAdvanceChar);
 
-    // Також підключаємо кнопку btnAdvance якщо є в UI
-    // (вона є в .ui — key_enter тут НЕ підключаємо, щоб не заважати)
-
-    // ── Початковий екран ──────────────────────────────────────────
     ui->stackedWidget->setCurrentIndex(0);
-
-    // Ініціалізуємо модель першим уроком
-    auto lessons = LessonModel::allLessons();
-    if (!lessons.isEmpty())
-        m_model.loadText(lessons.first().text);
-
-    // Ініціалізуємо статусні мітки
     ui->lblTime->setText("00:00");
     ui->lblSpeed->setText("0 CPM");
     ui->lblAccuracy->setText("100%");
     ui->progressAccuracy->setValue(100);
-
-    // Ініціалізуємо мітки результатів
     ui->lblResultTime->setText("00:00");
     ui->lblResultSpeed->setText("0 CPM");
     ui->lblResultAccuracy->setText("0%");
@@ -71,156 +66,197 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Ініціалізація уроків
-// ═══════════════════════════════════════════════════════════════════
+// ── п.3–4: Сканування + заповнення ComboBox ────────────────────────
 
-void MainWindow::setupLessons()
+void MainWindow::populateComboBox(bool keepSelection)
 {
+    // Запам'ятати поточний шлях для відновлення (п.7)
+    QString prevPath;
+    if (keepSelection) {
+        int pi = ui->comboLesson->currentIndex();
+        if (pi >= 0) prevPath = ui->comboLesson->itemData(pi).toString();
+    }
+
+    m_loader.scan();
+
     ui->comboLesson->blockSignals(true);
     ui->comboLesson->clear();
 
-    const auto lessons = LessonModel::allLessons();
-    for (const auto &lesson : lessons)
-        ui->comboLesson->addItem(lesson.title);
+    const auto &entries = m_loader.entries();
+
+    if (entries.isEmpty()) {
+        // п.8: порожній/відсутній каталог
+        ui->comboLesson->setEnabled(false);
+        ui->btnStartTraining->setEnabled(false);
+        ui->lblLessonDescription->setText(
+            "No lessons found. Add .txt files to the 'lessons/' folder.");
+        ui->comboLesson->blockSignals(false);
+        return;
+    }
+
+    ui->comboLesson->setEnabled(true);
+    ui->btnStartTraining->setEnabled(true);
+
+    int restoreIndex = 0;
+    for (int i = 0; i < entries.size(); ++i) {
+        // п.4: назва + шлях як userData
+        ui->comboLesson->addItem(entries[i].displayName, entries[i].filePath);
+        if (keepSelection && entries[i].filePath == prevPath)
+            restoreIndex = i;
+    }
 
     ui->comboLesson->blockSignals(false);
-
-    // Показати опис першого уроку
-    if (!lessons.isEmpty())
-        ui->lblLessonDescription->setText(lessons.first().description);
+    ui->comboLesson->setCurrentIndex(restoreIndex);
+    loadLessonByIndex(restoreIndex);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Оновлення Training-екрана з моделі
-// ═══════════════════════════════════════════════════════════════════
+// ── п.5: Завантаження уроку з файлу ────────────────────────────────
+
+void MainWindow::loadLessonByIndex(int index)
+{
+    if (!m_loader.hasLessons() || index < 0 || index >= m_loader.count()) {
+        m_model.loadText(QString());
+        ui->lblLessonDescription->setText("No lesson loaded.");
+        return;
+    }
+
+    QString text, error;
+    if (!m_loader.loadText(index, text, error)) {
+        // п.8: файл не відкрився — не падаємо
+        QMessageBox::warning(this, "Lesson load error",
+            QString("Could not load lesson:\n%1").arg(error));
+        m_model.loadText(QString());
+        ui->lblLessonDescription->setText("Failed to load lesson.");
+        return;
+    }
+
+    m_model.loadText(text);  // скидає lineIndex/charIndex (п.5)
+
+    const auto &e = m_loader.entries().at(index);
+    ui->lblLessonDescription->setText(
+        QString("%1\nFile: %2  |  Size: %3 bytes")
+            .arg(e.displayName)
+            .arg(e.filePath.section('/', -1))
+            .arg(e.fileSize));
+}
+
+// ── п.6: Випадковий урок ────────────────────────────────────────────
+
+void MainWindow::onRandomLesson()
+{
+    if (!m_loader.hasLessons()) {
+        // п.8: 0 уроків — нічого не робимо
+        QMessageBox::information(this, "Random lesson",
+            "No lessons available. Add .txt files to 'lessons/' first.");
+        return;
+    }
+
+    int count   = m_loader.count();
+    int current = ui->comboLesson->currentIndex();
+    int random  = current;
+
+    if (count > 1) {
+        while (random == current)
+            random = static_cast<int>(QRandomGenerator::global()->bounded(count));
+    }
+
+    // Встановлення в ComboBox викличе onLessonChanged → loadLessonByIndex
+    ui->comboLesson->setCurrentIndex(random);
+}
+
+// ── п.7: Перезавантаження списку уроків ────────────────────────────
+
+void MainWindow::onReloadLessons()
+{
+    populateComboBox(true);  // keepSelection = true
+    QMessageBox::information(this, "Lessons reloaded",
+        QString("Found %1 lesson(s) in:\n%2")
+            .arg(m_loader.count())
+            .arg(m_loader.lessonsDir()));
+}
+
+// ── Зміна вибору в ComboBox ────────────────────────────────────────
+
+void MainWindow::onLessonChanged(int index)
+{
+    loadLessonByIndex(index);
+}
+
+// ── Навігація між екранами ─────────────────────────────────────────
+
+void MainWindow::onStartTrainingClicked()
+{
+    if (!m_loader.hasLessons()) return;
+
+    m_model.reset();
+    ui->lblTime->setText("00:00");
+    ui->lblSpeed->setText("0 CPM");
+    ui->lblAccuracy->setText("100%");
+    ui->progressAccuracy->setValue(100);
+    ui->stackedWidget->setCurrentIndex(1);
+    refreshTrainingDisplay();
+}
+
+void MainWindow::onRestartTrainingClicked() { onStartTrainingClicked(); }
+void MainWindow::onReturnToMainClicked()    { ui->stackedWidget->setCurrentIndex(0); }
+
+// ── Training UI ────────────────────────────────────────────────────
 
 void MainWindow::refreshTrainingDisplay()
 {
-    // ── Попередній рядок ────────────────────────────────────────────
-    QString prevLine = m_model.previousLine();  // "" якщо ми на рядку 0
+    QString prevLine  = m_model.previousLine();
+    QString typed     = m_model.typedPart();
+    QString curChar   = m_model.currentChar();
+    QString remaining = m_model.remainingPart();
 
-    // ── Поточний рядок: три фрагменти ──────────────────────────────
-    QString typed     = m_model.typedPart();    // вже пройдено
-    QString curChar   = m_model.currentChar();  // поточний символ
-    QString remaining = m_model.remainingPart();// залишок
-
-    // ── Будуємо HTML для textDisplay ───────────────────────────────
     QString html =
-        "<html><body style=\""
-        "font-family:'Courier New',monospace;"
-        "font-size:17px;"
-        "background:#181825;"
-        "color:#cdd6f4;\">";
+        "<html><body style=\"font-family:'Courier New',monospace;"
+        "font-size:17px;background:#181825;color:#cdd6f4;\">";
 
-    // Попередній рядок (завершений, приглушений фон)
     if (!prevLine.isEmpty()) {
-        html += "<p style=\"background:#2a2a3e;color:#a6adc8;"
-                "padding:4px 8px;margin:2px 0;\">";
+        html += "<p style=\"background:#2a2a3e;color:#a6adc8;padding:4px 8px;margin:2px 0;\">";
         for (QChar c : prevLine)
             html += (c == ' ') ? "&nbsp;" : QString(c).toHtmlEscaped();
         html += "</p>";
     }
 
-    // Поточний рядок з підсвічуванням
     if (!m_model.isFinished()) {
         html += "<p style=\"background:#1e1e2e;padding:4px 8px;margin:2px 0;\">";
-
-        // Вже набрана частина — зеленим
         for (QChar c : typed) {
             QString ch = (c == ' ') ? "&nbsp;" : QString(c).toHtmlEscaped();
             html += "<span style=\"background:#1e4429;color:#a6e3a1;\">" + ch + "</span>";
         }
-
-        // Поточний символ — червоним
         if (!curChar.isEmpty()) {
             QString ch = (curChar[0] == ' ') ? "&nbsp;" : curChar.toHtmlEscaped();
-            html += "<span style=\"background:#f38ba8;color:#1e1e2e;"
-                    "padding:0 2px;\">" + ch + "</span>";
+            html += "<span style=\"background:#f38ba8;color:#1e1e2e;padding:0 2px;\">"
+                    + ch + "</span>";
         }
-
-        // Залишок — звичайним кольором
-        for (QChar c : remaining) {
-            QString ch = (c == ' ') ? "&nbsp;" : QString(c).toHtmlEscaped();
-            html += ch;
-        }
-
+        for (QChar c : remaining)
+            html += (c == ' ') ? "&nbsp;" : QString(c).toHtmlEscaped();
         html += "</p>";
 
-        // Наступні рядки (майбутні) — приглушені
         for (int i = m_model.lineIndex() + 1; i < m_model.lineCount(); ++i) {
-            QString line = m_model.lineAt(i);
             html += "<p style=\"color:#585b70;padding:4px 8px;margin:2px 0;\">";
-            for (QChar c : line)
+            for (QChar c : m_model.lineAt(i))
                 html += (c == ' ') ? "&nbsp;" : QString(c).toHtmlEscaped();
             html += "</p>";
         }
     } else {
-        // Текст пройдено повністю
-        html += "<p style=\"color:#a6e3a1;padding:8px;"
-                "font-size:16px;text-align:center;\">✔ Lesson complete!</p>";
+        html += "<p style=\"color:#a6e3a1;padding:8px;font-size:16px;"
+                "text-align:center;\">Lesson complete!</p>";
     }
 
     html += "</body></html>";
     ui->textDisplay->setHtml(html);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Навігація між екранами
-// ═══════════════════════════════════════════════════════════════════
-
-void MainWindow::onStartTrainingClicked()
-{
-    // Скинути позицію і перейти на Training
-    m_model.reset();
-    ui->lblTime->setText("00:00");
-    ui->lblSpeed->setText("0 CPM");
-    ui->lblAccuracy->setText("100%");
-    ui->progressAccuracy->setValue(100);
-
-    ui->stackedWidget->setCurrentIndex(1);
-    refreshTrainingDisplay();
-}
-
-void MainWindow::onRestartTrainingClicked()
-{
-    onStartTrainingClicked();
-}
-
-void MainWindow::onReturnToMainClicked()
-{
-    ui->stackedWidget->setCurrentIndex(0);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Start-екран: зміна уроку
-// ═══════════════════════════════════════════════════════════════════
-
-void MainWindow::onLessonChanged(int index)
-{
-    auto lessons = LessonModel::allLessons();
-    if (index < 0 || index >= lessons.size())
-        return;
-
-    // Оновити опис
-    ui->lblLessonDescription->setText(lessons[index].description);
-
-    // Завантажити нові текст і скинути позицію на початок (п.7)
-    m_model.loadText(lessons[index].text);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Тестова дія: просування на один символ (п.8)
-// ═══════════════════════════════════════════════════════════════════
+// ── Debug ──────────────────────────────────────────────────────────
 
 void MainWindow::onAdvanceChar()
 {
-    // Дія активна лише якщо ми на Training-екрані
-    if (ui->stackedWidget->currentIndex() != 1)
-        return;
+    if (ui->stackedWidget->currentIndex() != 1) return;
 
     if (m_model.isFinished()) {
-        // Показати екран результатів
         ui->lblResultTime->setText(ui->lblTime->text());
         ui->lblResultSpeed->setText(ui->lblSpeed->text());
         ui->lblResultAccuracy->setText(ui->lblAccuracy->text());
@@ -228,13 +264,9 @@ void MainWindow::onAdvanceChar()
         return;
     }
 
-    // Просуваємо позицію на 1 символ (або на наступний рядок)
     m_model.advance();
-
-    // Оновлюємо відображення
     refreshTrainingDisplay();
 
-    // Якщо щойно закінчили — перейти на Results
     if (m_model.isFinished()) {
         ui->lblResultTime->setText(ui->lblTime->text());
         ui->lblResultSpeed->setText(ui->lblSpeed->text());
@@ -243,19 +275,19 @@ void MainWindow::onAdvanceChar()
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Меню
-// ═══════════════════════════════════════════════════════════════════
+// ── Меню ───────────────────────────────────────────────────────────
 
 void MainWindow::onAboutClicked()
 {
     QMessageBox::about(this, "About TypingTrainer",
-        "<h3>TypingTrainer v1.0</h3>"
-        "<p>A typing practice application built with Qt Widgets.</p>"
-        "<p><b>Debug → Next char</b> or <b>→</b> key advances the cursor.</p>");
+        "<h3>TypingTrainer v1.0 PR8</h3>"
+        "<p>Lessons are loaded from the <b>lessons/</b> folder "
+        "next to the executable.</p>"
+        "<ul>"
+        "<li><b>Lessons -> Random lesson</b> (Ctrl+R)</li>"
+        "<li><b>Lessons -> Reload lessons</b> (Ctrl+Shift+R)</li>"
+        "<li><b>Debug -> Next char</b> (->)</li>"
+        "</ul>");
 }
 
-void MainWindow::onExitClicked()
-{
-    close();
-}
+void MainWindow::onExitClicked() { close(); }
