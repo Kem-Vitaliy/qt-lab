@@ -17,6 +17,12 @@ set(PROJECT_SOURCES
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
+    lessonmodel.h
+    lessonmodel.cpp
+    keyboardwidget.h
+    keyboardwidget.cpp
+    textdisplaywidget.h
+    textdisplaywidget.cpp
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
