@@ -2,12 +2,16 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QPointer>
 #include "lessonmodel.h"
 #include "lessonloader.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
+
+class QPushButton;
+class QKeyEvent;
 
 class MainWindow : public QMainWindow
 {
@@ -16,6 +20,9 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
     // ── Навігація між екранами ──────────────────────────────
@@ -46,6 +53,10 @@ private:
     LessonModel    m_model;   ///< Модель поточного уроку
     LessonLoader   m_loader;  ///< Файловий сканер / завантажувач
 
+    bool m_trainingInputEnabled = false;
+    QPointer<QPushButton> m_lastHighlightedKey;
+    QString m_lastHighlightedKeyStyle;
+
     // ── Ініціалізація / сканування ───────────────────────────
     /**
      * Сканує lessons/, заповнює ComboBox.
@@ -58,6 +69,11 @@ private:
 
     // ── Оновлення Training UI ────────────────────────────────
     void refreshTrainingDisplay();
+    void setTrainingInputEnabled(bool enabled);
+    void highlightVirtualKeyForEvent(QKeyEvent *ke);
+    void highlightVirtualKeyForChar(QChar ch);
+    void highlightVirtualKeyByObjectName(const QString &objectName);
+    void clearVirtualKeyHighlight();
 };
 
 #endif // MAINWINDOW_H

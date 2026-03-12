@@ -2,6 +2,8 @@
 
 #include <QString>
 #include <QStringList>
+#include <QVector>
+#include <QtGlobal>
 
 /**
  * LessonModel
@@ -15,6 +17,8 @@
 class LessonModel
 {
 public:
+    enum class CharState : quint8 { Unknown = 0, Correct = 1, Wrong = 2 };
+
     // ── Визначення уроків ─────────────────────────────────────────
     struct LessonDef {
         QString title;
@@ -55,6 +59,9 @@ public:
     /// Чи пройдено весь текст.
     bool isFinished() const;
 
+    /// Чи ми стоїмо на кінці поточного рядка (потрібен Enter).
+    bool atEndOfLine() const;
+
     // ── Поточний / попередній рядок ───────────────────────────────
     /// Поточний рядок (або "", якщо текст закінчився).
     QString currentLine() const  { return lineAt(m_lineIndex); }
@@ -81,11 +88,31 @@ public:
      */
     bool advance();
 
+    // ── Ввід під час сесії ────────────────────────────────────────
+    /**
+     * Ввести символ, який прийшов із QKeyEvent::text().
+     * - ігнорує ввід, якщо урок завершений або ми в кінці рядка (потрібен Enter)
+     * - зберігає стан Correct/Wrong для поточної позиції
+     */
+    bool inputChar(QChar ch, bool *outCorrect = nullptr);
+
+    /// Backspace: повернути позицію назад на 1 символ (з очищенням стану).
+    bool backspace();
+
+    /// Enter: перейти на наступний рядок, якщо поточний рядок завершено.
+    bool enter();
+
+    /// Стан символу на позиції (line,pos). Unknown якщо поза межами.
+    CharState stateAt(int line, int pos) const;
+
 private:
     QString     m_text;
     QStringList m_lines;
     int         m_lineIndex = 0;
     int         m_charIndex = 0;
+    QVector<QVector<CharState>> m_states; // [line][pos]
 
     void rebuildLines();
+    void rebuildStates();
+    void skipEmptyLinesForward();
 };
