@@ -13,6 +13,9 @@ QT_END_NAMESPACE
 class QPushButton;
 class QKeyEvent;
 
+class QTimer;
+class QSettings;
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -48,6 +51,9 @@ private slots:
     /// Debug: просунути позицію на 1 символ (з ПР7 п.8).
     void onAdvanceChar();
 
+    /// Оновлення часу кожну секунду (п.2).
+    void onTimerTick();
+
 private:
     Ui::MainWindow *ui;
     LessonModel    m_model;   ///< Модель поточного уроку
@@ -56,6 +62,15 @@ private:
     bool m_trainingInputEnabled = false;
     QPointer<QPushButton> m_lastHighlightedKey;
     QString m_lastHighlightedKeyStyle;
+
+    // ── Таймер та метрики (п.2, 4, 5) ────────────────────────
+    QTimer *m_timer = nullptr;
+    int m_elapsedSeconds = 0;
+    int m_totalTyped = 0;
+    int m_correctTyped = 0;
+
+    enum SpeedMetric { CPM, WPM };
+    SpeedMetric m_speedMetric = CPM;
 
     // ── Ініціалізація / сканування ───────────────────────────
     /**
@@ -69,11 +84,16 @@ private:
 
     // ── Оновлення Training UI ────────────────────────────────
     void refreshTrainingDisplay();
+    void updateMetricsUI();
     void setTrainingInputEnabled(bool enabled);
     void highlightVirtualKeyForEvent(QKeyEvent *ke);
     void highlightVirtualKeyForChar(QChar ch);
     void highlightVirtualKeyByObjectName(const QString &objectName);
     void clearVirtualKeyHighlight();
+
+    // ── Збереження налаштувань (п.8) ──────────────────────────
+    void loadSettings();
+    void saveSettings();
 };
 
 #endif // MAINWINDOW_H

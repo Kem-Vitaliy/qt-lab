@@ -9,6 +9,11 @@
 #include <QKeyEvent>
 #include <QPushButton>
 
+#include <QTimer>
+#include <QSettings>
+#include <QActionGroup>
+#include <QStatusBar>
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -17,7 +22,12 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("TypingTrainer");
     resize(860, 620);
 
+    m_timer = new QTimer(this);
+    m_timer->setInterval(1000);
+    connect(m_timer, &QTimer::timeout, this, &MainWindow::onTimerTick);
+
     populateComboBox();
+    loadSettings();
 
     connect(ui->actionExit,  &QAction::triggered, this, &MainWindow::onExitClicked);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::onAboutClicked);
@@ -27,6 +37,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnRestartTraining,
             &QPushButton::clicked, this, &MainWindow::onRestartTrainingClicked);
     connect(ui->btnReturnToMain,
+            &QPushButton::clicked, this, &MainWindow::onReturnToMainClicked);
+    connect(ui->btnBackToMain,
             &QPushButton::clicked, this, &MainWindow::onReturnToMainClicked);
 
     connect(ui->comboLesson,
@@ -41,6 +53,22 @@ MainWindow::MainWindow(QWidget *parent)
     actReload->setShortcut(QKeySequence(Qt::Key_F5));
     connect(actRandom, &QAction::triggered, this, &MainWindow::onRandomLesson);
     connect(actReload, &QAction::triggered, this, &MainWindow::onReloadLessons);
+
+    // Метрика швидкості (п.8.2)
+    QMenu *menuSettings = menuBar()->addMenu("Settings");
+    QActionGroup *groupSpeed = new QActionGroup(this);
+    QAction *actCPM = menuSettings->addAction("CPM (Characters per minute)");
+    QAction *actWPM = menuSettings->addAction("WPM (Words per minute)");
+    actCPM->setCheckable(true);
+    actWPM->setCheckable(true);
+    groupSpeed->addAction(actCPM);
+    groupSpeed->addAction(actWPM);
+
+    if (m_speedMetric == CPM) actCPM->setChecked(true);
+    else actWPM->setChecked(true);
+
+    connect(actCPM, &QAction::triggered, this, [this](){ m_speedMetric = CPM; updateMetricsUI(); saveSettings(); });
+    connect(actWPM, &QAction::triggered, this, [this](){ m_speedMetric = WPM; updateMetricsUI(); saveSettings(); });
 
     // Ctrl+Shift+R → повернення на Start-екран (вибір уроку)
     auto *actReturnToMain = new QAction("Return to lesson selection", this);
@@ -76,6 +104,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    saveSettings();
     if (qApp) qApp->removeEventFilter(this);
     delete ui;
 }
@@ -174,10 +203,16 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
     }
 
-    m_model.inputChar(ch);
+    bool correct = false;
+    if (m_model.inputChar(ch, &correct)) {
+        m_totalTyped++;
+        if (correct) m_correctTyped++;
+    }
     refreshTrainingDisplay();
+    updateMetricsUI();
 
     if (m_model.isFinished()) {
+        m_timer->stop();
         ui->lblResultTime->setText(ui->lblTime->text());
         ui->lblResultSpeed->setText(ui->lblSpeed->text());
         ui->lblResultAccuracy->setText(ui->lblAccuracy->text());
@@ -267,7 +302,6 @@ void MainWindow::loadLessonByIndex(int index)
 void MainWindow::onRandomLesson()
 {
     if (!m_loader.hasLessons()) {
-        // п.8: 0 уроків — нічого не робимо
         QMessageBox::information(this, "Random lesson",
             "No lessons available. Add .txt files to 'lessons/' first.");
         return;
@@ -282,19 +316,35 @@ void MainWindow::onRandomLesson()
             random = static_cast<int>(QRandomGenerator::global()->bounded(count));
     }
 
-    // Встановлення в ComboBox викличе onLessonChanged → loadLessonByIndex
+    // Встановлення в ComboBox викличе onLessonChanged -> loadLessonByIndex
     ui->comboLesson->setCurrentIndex(random);
+
+    // Якщо ми вже на екрані тренування — одразу запускаємо новий урок
+    if (ui->stackedWidget->currentIndex() == 1) {
+        onStartTrainingClicked();
+    }
 }
 
 // ── п.7: Перезавантаження списку уроків ────────────────────────────
 
 void MainWindow::onReloadLessons()
 {
-    populateComboBox(true);  // keepSelection = true
-    QMessageBox::information(this, "Lessons reloaded",
-        QString("Found %1 lesson(s) in:\n%2")
-            .arg(m_loader.count())
-            .arg(m_loader.lessonsDir()));
+    populateComboBox(true);  // Оновлює список і завантажує текст у модель
+
+    // Якщо ми зараз на екрані тренування — оновлюємо UI, щоб побачити зміни в тексті
+    if (ui->stackedWidget->currentIndex() == 1) {
+        m_model.reset(); // Скидаємо прогрес на початок оновленого тексту
+        m_elapsedSeconds = 0;
+        m_totalTyped = 0;
+        m_correctTyped = 0;
+        ui->lblTime->setText("00:00");
+        updateMetricsUI();
+        refreshTrainingDisplay();
+    }
+
+    if (statusBar()) {
+        statusBar()->showMessage(QString("Lessons reloaded. Found %1 lesson(s).").arg(m_loader.count()), 3000);
+    }
 }
 
 // ── Зміна вибору в ComboBox ────────────────────────────────────────
@@ -302,6 +352,74 @@ void MainWindow::onReloadLessons()
 void MainWindow::onLessonChanged(int index)
 {
     loadLessonByIndex(index);
+    saveSettings();
+}
+
+void MainWindow::onTimerTick()
+{
+    m_elapsedSeconds++;
+    int minutes = m_elapsedSeconds / 60;
+    int seconds = m_elapsedSeconds % 60;
+    ui->lblTime->setText(QString("%1:%2")
+                         .arg(minutes, 2, 10, QChar('0'))
+                         .arg(seconds, 2, 10, QChar('0')));
+
+    updateMetricsUI();
+}
+
+void MainWindow::updateMetricsUI()
+{
+    // Speed
+    double speed = 0;
+    if (m_elapsedSeconds > 0) {
+        if (m_speedMetric == CPM) {
+            speed = (m_totalTyped * 60.0) / m_elapsedSeconds;
+        } else {
+            // WPM: 5 chars = 1 word
+            speed = (m_totalTyped / 5.0 * 60.0) / m_elapsedSeconds;
+        }
+    }
+
+    QString unit = (m_speedMetric == CPM) ? "CPM" : "WPM";
+    ui->lblSpeed->setText(QString("%1 %2").arg(qRound(speed)).arg(unit));
+
+    // Accuracy
+    int accuracy = 100;
+    if (m_totalTyped > 0) {
+        accuracy = qRound((m_correctTyped * 100.0) / m_totalTyped);
+    }
+    ui->lblAccuracy->setText(QString("%1%").arg(accuracy));
+    ui->progressAccuracy->setValue(accuracy);
+}
+
+void MainWindow::loadSettings()
+{
+    QSettings settings("TypingTrainer", "TypingTrainer");
+    QString lastPath = settings.value("lastLessonPath").toString();
+    if (!lastPath.isEmpty()) {
+        for (int i = 0; i < ui->comboLesson->count(); ++i) {
+            if (ui->comboLesson->itemData(i).toString() == lastPath) {
+                ui->comboLesson->blockSignals(true);
+                ui->comboLesson->setCurrentIndex(i);
+                loadLessonByIndex(i);
+                ui->comboLesson->blockSignals(false);
+                break;
+            }
+        }
+    }
+
+    int metric = settings.value("speedMetric", CPM).toInt();
+    m_speedMetric = static_cast<SpeedMetric>(metric);
+}
+
+void MainWindow::saveSettings()
+{
+    QSettings settings("TypingTrainer", "TypingTrainer");
+    int idx = ui->comboLesson->currentIndex();
+    if (idx >= 0) {
+        settings.setValue("lastLessonPath", ui->comboLesson->itemData(idx).toString());
+    }
+    settings.setValue("speedMetric", static_cast<int>(m_speedMetric));
 }
 
 // ── Навігація між екранами ─────────────────────────────────────────
@@ -311,10 +429,14 @@ void MainWindow::onStartTrainingClicked()
     if (!m_loader.hasLessons()) return;
 
     m_model.reset();
+    m_elapsedSeconds = 0;
+    m_totalTyped = 0;
+    m_correctTyped = 0;
+    m_timer->stop(); // Ensure it's stopped before starting
+    m_timer->start();
+
     ui->lblTime->setText("00:00");
-    ui->lblSpeed->setText("0 CPM");
-    ui->lblAccuracy->setText("100%");
-    ui->progressAccuracy->setValue(100);
+    updateMetricsUI();
     ui->stackedWidget->setCurrentIndex(1);
     setTrainingInputEnabled(true);
     ui->pageTraining->setFocusPolicy(Qt::StrongFocus);
@@ -325,6 +447,7 @@ void MainWindow::onStartTrainingClicked()
 void MainWindow::onRestartTrainingClicked() { onStartTrainingClicked(); }
 void MainWindow::onReturnToMainClicked()
 {
+    m_timer->stop();
     ui->stackedWidget->setCurrentIndex(0);
     setTrainingInputEnabled(false);
 }
@@ -486,6 +609,7 @@ void MainWindow::onAdvanceChar()
     if (ui->stackedWidget->currentIndex() != 1) return;
 
     if (m_model.isFinished()) {
+        m_timer->stop();
         ui->lblResultTime->setText(ui->lblTime->text());
         ui->lblResultSpeed->setText(ui->lblSpeed->text());
         ui->lblResultAccuracy->setText(ui->lblAccuracy->text());
@@ -497,6 +621,7 @@ void MainWindow::onAdvanceChar()
     refreshTrainingDisplay();
 
     if (m_model.isFinished()) {
+        m_timer->stop();
         ui->lblResultTime->setText(ui->lblTime->text());
         ui->lblResultSpeed->setText(ui->lblSpeed->text());
         ui->lblResultAccuracy->setText(ui->lblAccuracy->text());
