@@ -20,6 +20,9 @@ set(PROJECT_SOURCES
     ticketdialog.cpp
     ticketdialog.h
     ticketdialog.ui
+    tickettablemodel.cpp
+    tickettablemodel.h
+    ticket.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

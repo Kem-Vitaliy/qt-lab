@@ -4,7 +4,9 @@
 TicketDialog::TicketDialog(Mode mode, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::TicketDialog),
-    m_mode(mode)
+    m_mode(mode),
+    m_id(0),
+    m_createdAt(QDateTime::currentDateTime())
 {
     ui->setupUi(this);
     setMode(m_mode);
@@ -13,6 +15,32 @@ TicketDialog::TicketDialog(Mode mode, QWidget *parent) :
 TicketDialog::~TicketDialog()
 {
     delete ui;
+}
+
+void TicketDialog::setTicket(const Ticket &ticket)
+{
+    m_id = ticket.id;
+    m_createdAt = ticket.createdAt;
+    
+    ui->lineEditTitle->setText(ticket.title);
+    ui->comboBoxStatus->setCurrentText(ticket.status);
+    ui->comboBoxPriority->setCurrentText(ticket.priority);
+    ui->plainTextEditDescription->setPlainText(ticket.description);
+    
+    ui->labelID->setText(QString::number(m_id));
+    ui->labelCreated->setText(m_createdAt.toString("yyyy-MM-dd HH:mm:ss"));
+}
+
+Ticket TicketDialog::getTicket() const
+{
+    Ticket ticket;
+    ticket.id = m_id;
+    ticket.title = ui->lineEditTitle->text();
+    ticket.status = ui->comboBoxStatus->currentText();
+    ticket.priority = ui->comboBoxPriority->currentText();
+    ticket.description = ui->plainTextEditDescription->toPlainText();
+    ticket.createdAt = m_createdAt;
+    return ticket;
 }
 
 void TicketDialog::setMode(Mode mode)
@@ -54,12 +82,8 @@ void TicketDialog::on_btnEdit_clicked()
 
 void TicketDialog::on_btnSave_clicked()
 {
-    // Save logic here
-    if (m_mode == Mode::New) {
-        accept();
-    } else {
-        setMode(Mode::View);
-    }
+    // In both New and Edit modes, "Save" should accept the dialog
+    accept();
 }
 
 void TicketDialog::on_btnCancel_clicked()

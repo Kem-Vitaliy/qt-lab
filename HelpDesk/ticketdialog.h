@@ -2,6 +2,7 @@
 #define TICKETDIALOG_H
 
 #include <QDialog>
+#include "ticket.h"
 
 namespace Ui {
 class TicketDialog;
@@ -21,6 +22,9 @@ public:
     explicit TicketDialog(Mode mode, QWidget *parent = nullptr);
     ~TicketDialog();
 
+    void setTicket(const Ticket &ticket);
+    Ticket getTicket() const;
+
 private slots:
     void on_btnEdit_clicked();
     void on_btnSave_clicked();
@@ -33,6 +37,8 @@ private:
 
     Ui::TicketDialog *ui;
     Mode m_mode;
+    int m_id;
+    QDateTime m_createdAt;
 };
 
 #endif // TICKETDIALOG_H
