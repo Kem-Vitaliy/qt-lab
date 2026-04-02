@@ -21,6 +21,8 @@ public:
     void updateTicket(int row, const Ticket &ticket);
     void removeTicket(int row);
     Ticket getTicket(int row) const;
+    QVector<Ticket> getTickets() const;
+    void setTickets(const QVector<Ticket> &tickets);
 
 private:
     QVector<Ticket> m_tickets;

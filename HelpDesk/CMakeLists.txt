@@ -23,6 +23,8 @@ set(PROJECT_SOURCES
     tickettablemodel.cpp
     tickettablemodel.h
     ticket.h
+    csvticketrepository.cpp
+    csvticketrepository.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

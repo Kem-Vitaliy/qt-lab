@@ -89,3 +89,15 @@ Ticket TicketTableModel::getTicket(int row) const
         return Ticket();
     return m_tickets.at(row);
 }
+
+QVector<Ticket> TicketTableModel::getTickets() const
+{
+    return m_tickets;
+}
+
+void TicketTableModel::setTickets(const QVector<Ticket> &tickets)
+{
+    beginResetModel();
+    m_tickets = tickets;
+    endResetModel();
+}
