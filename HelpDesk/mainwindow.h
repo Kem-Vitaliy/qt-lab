@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "tickettablemodel.h"
 #include "csvticketrepository.h"
+#include "ticketsortfilterproxymodel.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -26,11 +27,15 @@ private slots:
     void on_actionAbout_triggered();
     void updateActionsState();
 
+    void onFilterChanged();
+    void onTableViewDoubleClicked(const QModelIndex &index);
+
 private:
     void saveData();
 
     Ui::MainWindow *ui;
     TicketTableModel *m_model;
+    TicketSortFilterProxyModel *m_proxyModel;
     CsvTicketRepository *m_repository;
 };
 #endif // MAINWINDOW_H
