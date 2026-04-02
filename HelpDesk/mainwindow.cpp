@@ -19,11 +19,24 @@ MainWindow::MainWindow(QWidget *parent)
     m_model->addTicket({3, "New software request", "Normal", "Closed", QDateTime::currentDateTime().addSecs(-5 * 3600), "Request for Visual Studio installation."});
     m_model->addTicket({4, "Network is slow", "Critical", "Open", QDateTime::currentDateTime().addSecs(-2 * 3600), "Multiple reports of intermittent connection."});
     m_model->addTicket({5, "Monitor flickering", "Normal", "Resolved", QDateTime::currentDateTime().addSecs(-30 * 60), "Cable replaced, flickering stopped."});
+
+    connect(ui->tableViewTickets->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &MainWindow::updateActionsState);
+    
+    updateActionsState();
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::updateActionsState()
+{
+    bool hasSelection = ui->tableViewTickets->selectionModel()->hasSelection();
+    ui->actionView->setEnabled(hasSelection);
+    ui->actionEdit->setEnabled(hasSelection);
+    ui->actionDelete->setEnabled(hasSelection);
 }
 
 void MainWindow::on_actionNew_triggered()

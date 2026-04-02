@@ -30,10 +30,12 @@ private slots:
     void on_btnSave_clicked();
     void on_btnCancel_clicked();
     void on_btnClose_clicked();
+    void validate();
 
 private:
     void setMode(Mode mode);
     void updateUIForMode();
+    void setupConnections();
 
     Ui::TicketDialog *ui;
     Mode m_mode;

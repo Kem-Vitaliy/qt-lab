@@ -23,6 +23,7 @@ private slots:
     void on_actionDelete_triggered();
     void on_actionExit_triggered();
     void on_actionAbout_triggered();
+    void updateActionsState();
 
 private:
     Ui::MainWindow *ui;

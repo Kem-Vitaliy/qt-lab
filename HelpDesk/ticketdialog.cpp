@@ -9,12 +9,29 @@ TicketDialog::TicketDialog(Mode mode, QWidget *parent) :
     m_createdAt(QDateTime::currentDateTime())
 {
     ui->setupUi(this);
+    setupConnections();
     setMode(m_mode);
 }
 
 TicketDialog::~TicketDialog()
 {
     delete ui;
+}
+
+void TicketDialog::setupConnections()
+{
+    connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &TicketDialog::validate);
+}
+
+void TicketDialog::validate()
+{
+    // Title is mandatory
+    bool isValid = !ui->lineEditTitle->text().trimmed().isEmpty();
+    
+    // Save button is only enabled if the form is valid AND we are not in View mode
+    if (m_mode != Mode::View) {
+        ui->btnSave->setEnabled(isValid);
+    }
 }
 
 void TicketDialog::setTicket(const Ticket &ticket)
@@ -29,6 +46,8 @@ void TicketDialog::setTicket(const Ticket &ticket)
     
     ui->labelID->setText(QString::number(m_id));
     ui->labelCreated->setText(m_createdAt.toString("yyyy-MM-dd HH:mm:ss"));
+    
+    validate(); // Check validity after setting data
 }
 
 Ticket TicketDialog::getTicket() const
@@ -73,6 +92,8 @@ void TicketDialog::updateUIForMode()
         ui->btnClose->hide();
         setWindowTitle(m_mode == Mode::New ? "New Ticket" : "Edit Ticket");
     }
+    
+    validate();
 }
 
 void TicketDialog::on_btnEdit_clicked()
