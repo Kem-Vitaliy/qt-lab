@@ -9,7 +9,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 COMPONENTS Core Gui Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Widgets Sql REQUIRED)
 
 add_executable(PasswordManager
     src/main.cpp
@@ -18,7 +18,7 @@ add_executable(PasswordManager
     src/mainwindow.ui
 )
 
-target_link_libraries(PasswordManager PRIVATE Qt6::Widgets)
+target_link_libraries(PasswordManager PRIVATE Qt6::Widgets Qt6::Sql)
 
 if(WIN32)
     set_target_properties(PasswordManager PROPERTIES

@@ -3,6 +3,9 @@
 
 #include <QMainWindow>
 #include <QStandardItemModel>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -23,11 +26,17 @@ private slots:
     void onActionSaveTriggered();
     void onActionExitTriggered();
     void onSearchTextChanged(const QString &text);
+    void onItemChanged(QStandardItem *item);
 
 private:
     Ui::MainWindow *ui;
     QStandardItemModel *model;
+    QSqlDatabase db;
 
     void setupModel();
+    bool initDatabase();
+    void loadRecords();
+    bool saveRecord(int row);
+    bool deleteFromDatabase(int id);
 };
 #endif // MAINWINDOW_H
