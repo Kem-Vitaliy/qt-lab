@@ -2,10 +2,9 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QStandardItemModel>
-#include <QSqlDatabase>
-#include <QSqlQuery>
-#include <QSqlError>
+#include "passwordmodel.h"
+#include "passwordproxymodel.h"
+#include "repository.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -26,17 +25,16 @@ private slots:
     void onActionSaveTriggered();
     void onActionExitTriggered();
     void onSearchTextChanged(const QString &text);
-    void onItemChanged(QStandardItem *item);
+    void onCategoryFilterChanged(const QString &category);
+    void checkEmptyResults();
 
 private:
     Ui::MainWindow *ui;
-    QStandardItemModel *model;
-    QSqlDatabase db;
+    PasswordModel *model;
+    PasswordProxyModel *proxyModel;
+    Repository *repository;
 
     void setupModel();
-    bool initDatabase();
-    void loadRecords();
-    bool saveRecord(int row);
-    bool deleteFromDatabase(int id);
+    void updateStatusLabel();
 };
 #endif // MAINWINDOW_H

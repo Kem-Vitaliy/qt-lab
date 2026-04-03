@@ -16,6 +16,15 @@ add_executable(PasswordManager
     src/mainwindow.cpp
     src/mainwindow.h
     src/mainwindow.ui
+    src/record.h
+    src/databasemanager.cpp
+    src/databasemanager.h
+    src/repository.cpp
+    src/repository.h
+    src/passwordmodel.cpp
+    src/passwordmodel.h
+    src/passwordproxymodel.cpp
+    src/passwordproxymodel.h
 )
 
 target_link_libraries(PasswordManager PRIVATE Qt6::Widgets Qt6::Sql)
